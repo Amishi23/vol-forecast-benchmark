@@ -39,21 +39,21 @@ On top of the research pipeline there is a small serving stack:
   the next-day forecast from each model, and the walk-forward backtest comparison.
 
 ```bash
-python -m src.fit_final                          # trains + saves artifacts/ (about 4 min on CPU)
+python -m src.fit_final --data yfinance          # trains + saves artifacts/ (minutes on CPU)
 uvicorn api.main:create_app --factory --port 8000
 # dashboard: http://localhost:8000     API docs: http://localhost:8000/docs
 ```
 
-For real data, run `python -m src.train --data yfinance` and
-`python -m src.fit_final --data yfinance`, then restart the server. Re-running `fit_final`
-on a schedule (cron or a GitHub Action) is how you would keep forecasts fresh. That
-scheduler is not included.
+The `artifacts/` folder in this repo holds models trained on real ETF data (see
+`artifacts/meta.json` for the training date). To refresh them, re-run `fit_final` and
+restart the server. Running it on a schedule (cron or a GitHub Action) would keep forecasts
+current. That scheduler is not included.
 
 ```bash
-curl localhost:8000/api/forecast/SIM0      # synthetic demo asset names are SIM0..SIM7
+curl localhost:8000/api/forecast/SPY
 ```
 
-A `Dockerfile` is included (CPU build). It has not been tested in my environment.
+A `Dockerfile` is included (CPU build). It has not been tested yet.
 
 ## Quick start
 
@@ -71,9 +71,16 @@ Outputs are written to `results/`: `summary.csv`, `qlike_by_fold.csv`, `forecast
 
 ### Running on Google Colab (free GPU)
 
-1. Upload the folder (or push it to GitHub and clone it).
+1. Open a new notebook at colab.research.google.com.
 2. Runtime > Change runtime type > T4 GPU.
-3. `!pip install -q yfinance` then run the commands above with `--data yfinance --device cuda --amp`.
+3. Run:
+
+```
+!git clone https://github.com/Amishi23/vol-forecast-benchmark.git
+%cd vol-forecast-benchmark
+!pip install -q yfinance joblib
+!python -m src.benchmark
+```
 
 ## Results
 
@@ -92,13 +99,14 @@ evidence about real markets.**
 | **LSTM** | **0.672** | **0.525** | **0.205** | **-13.9%** | <0.001 |
 | Transformer | 0.683 | 0.534 | 0.216 | -9.4% | <0.001 |
 
-The LSTM had the lowest QLIKE in all 6 folds (see `results/qlike_by_fold.csv`).
+The LSTM had the lowest QLIKE in all 6 folds of the synthetic run.
 
-### Real data (fill in after running)
+### Real data (10 ETFs, 5,476 trading days, 16 walk-forward folds, CPU)
 
 ```
 python -m src.train --data yfinance
 ```
+
 | Model | RMSE (log) | MAE (log) | QLIKE | QLIKE vs HAR-X | DM p-value |
 |---|---|---|---|---|---|
 | Naive (yesterday) | 0.995 | 0.791 | 0.524 | +42.2% | <0.001 |
@@ -108,13 +116,10 @@ python -m src.train --data yfinance
 | **LSTM** | **0.789** | **0.628** | **0.350** | **-5.0%** | <0.001 |
 | Transformer | 0.794 | 0.631 | 0.357 | -3.3% | 0.012 |
 
-The LSTM beats HAR-X by about 5% in QLIKE, a small but statistically significant gain.
-The Transformer also beats it, by less. Single seed, limited tuning, and the variance proxy
-is the noisy Parkinson high-low estimator, so treat the ranking of the two networks as tentative
-
-| Model | QLIKE | QLIKE vs HAR-X | DM p-value |
-|---|---|---|---|
-| ... | ... | ... | ... |
+The LSTM beats HAR-X by about 5% in QLIKE, a small but statistically significant gain. It had
+lower QLIKE than HAR-X in 14 of 16 walk-forward folds (the Transformer in 13 of 16).
+Single seed, limited tuning, and the variance proxy is the noisy Parkinson high-low estimator,
+so treat the ranking of the two networks as tentative.
 
 ### GPU benchmark (fill in after running on a GPU)
 
@@ -142,10 +147,14 @@ python -m src.benchmark
 
 ## Limitations
 
-- Synthetic results depend on the simulator I wrote. Check real data before drawing conclusions.
-- The real-data variance proxy is the Parkinson high-low estimator, which is noisier than
-  intraday realised variance.
-- The served demo models are trained on synthetic data. Retrain on real data before reading anything into the forecasts.
+- Synthetic results depend on the simulator I wrote. The real-data results above are the ones
+  that matter.
+- The real-data variance proxy is the Parkinson high-low estimator. It is noisier than
+  intraday realised variance and ignores overnight gaps, so volatility levels run lower than
+  close-to-close or VIX-style figures. Changes over time and comparisons between models
+  are still meaningful.
+- The served models are trained on data up to the date in `artifacts/meta.json`. Re-run
+  `fit_final` to refresh them.
 - The dashboard loads Chart.js and a font from public CDNs, so it needs internet in your browser.
 - Single seed by default. Use `--seeds 5` to ensemble the networks and reduce variance.
 - Hyperparameters were not tuned extensively.
@@ -169,9 +178,10 @@ src/metrics.py     QLIKE, calibration, Diebold-Mariano test
 src/train.py       walk-forward training and evaluation
 src/fit_final.py   fit on all data and save serving artifacts
 src/inference.py   load artifacts and produce next-day forecasts
+src/benchmark.py   CPU/GPU and mixed-precision throughput benchmark
 api/main.py        FastAPI service
 api/static/        dashboard (index.html)
-artifacts/         saved demo models (synthetic data)
-src/benchmark.py   CPU/GPU and mixed-precision throughput benchmark
-tests/             leakage and pipeline unit tests
+artifacts/         saved models trained on real ETF data
+results/           backtest outputs
+tests/             leakage, pipeline and API tests
 ```
