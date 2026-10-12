@@ -1,0 +1,19 @@
+{
+  "data": "yfinance",
+  "n_assets": 8,
+  "n_days": 3000,
+  "window": 22,
+  "init_train": 1500,
+  "val_len": 200,
+  "test_len": 250,
+  "epochs": 40,
+  "patience": 6,
+  "batch": 256,
+  "lr": 0.002,
+  "seeds": 1,
+  "seed": 0,
+  "device": "auto",
+  "amp": false,
+  "out": "results",
+  "seconds": 15286.6
+}

@@ -1,0 +1,27 @@
+data=synthetic  days=3000  assets=8  window=22  device=cpu
+fold 1/6 done  (test days 1500-1749)  elapsed 87s
+fold 2/6 done  (test days 1750-1999)  elapsed 194s
+fold 3/6 done  (test days 2000-2249)  elapsed 272s
+fold 4/6 done  (test days 2250-2499)  elapsed 409s
+fold 5/6 done  (test days 2500-2749)  elapsed 529s
+fold 6/6 done  (test days 2750-2999)  elapsed 752s
+
+=== Out-of-sample summary (lower is better) ===
+                        RMSE_log  MAE_log  QLIKE  QLIKE_vs_HAR-X_%  DM_stat_vs_HAR-X  DM_p_vs_HAR-X
+model                                                                                              
+Naive (yesterday)         0.9096   0.7132 0.4337           81.8389           22.1774         0.0000
+EWMA (0.94)               0.7808   0.5995 0.2705           13.4084            5.4703         0.0000
+HAR (Ridge)               0.7224   0.5639 0.2526            5.9020            6.0139         0.0000
+HAR-X (Ridge + market)    0.7113   0.5562 0.2385            0.0000               NaN            NaN
+LSTM                      0.6717   0.5252 0.2053          -13.9081          -10.1101         0.0000
+Transformer               0.6831   0.5338 0.2160           -9.4464           -8.1428         0.0000
+
+=== QLIKE by fold ===
+model  Naive (yesterday)  EWMA (0.94)  HAR (Ridge)  HAR-X (Ridge + market)   LSTM  Transformer
+fold                                                                                          
+0                 0.4683       0.2584       0.2711                  0.2486 0.2101       0.2399
+1                 0.4259       0.2638       0.2360                  0.2216 0.1946       0.2006
+2                 0.4402       0.2974       0.2673                  0.2511 0.2113       0.2237
+3                 0.4510       0.3335       0.2824                  0.2710 0.2335       0.2427
+4                 0.3867       0.2497       0.2326                  0.2175 0.1916       0.1970
+5                 0.4302       0.2201       0.2261                  0.2213 0.1908       0.1920

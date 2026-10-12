@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volatility forecasts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --paper: #f6f7f9;
+    --ink: #16212c;
+    --muted: #5b6874;
+    --rule: #d5dae0;
+    --raised: #ffffff;
+    --cobalt: #2348d9;
+    --teal: #0b7f86;
+    --amber: #a8680f;
+    --grey-line: #a3aeb9;
+    --good: #0b7a4b;
+    --bad: #b3261e;
+    --focus: #2348d9;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: 1rem; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums;
+  }
+  a, button { font: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .banner {
+    background: #fff4d6; color: #5a4300; border-bottom: 1px solid #ecd48f;
+    padding: .6rem 1.25rem; font-size: .9rem;
+  }
+  .banner[hidden] { display: none; }
+
+  .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 100vh; }
+  aside { border-right: 1px solid var(--rule); padding: 1.5rem 0 2rem; background: var(--raised); }
+  aside h1 { font-size: 1.05rem; font-weight: 800; margin: 0 1.25rem .25rem; letter-spacing: -.01em; }
+  aside p.sub { margin: 0 1.25rem 1.25rem; color: var(--muted); font-size: .85rem; }
+  .assets { list-style: none; margin: 0; padding: 0; }
+  .assets button {
+    display: flex; justify-content: space-between; align-items: baseline; width: 100%;
+    padding: .65rem 1.25rem; background: none; border: 0; border-left: 4px solid transparent;
+    color: var(--ink); cursor: pointer; text-align: left;
+  }
+  .assets button:hover { background: #eef1f6; }
+  .assets button[aria-pressed="true"] { border-left-color: var(--cobalt); background: #eaeffc; font-weight: 600; }
+  .assets .v { color: var(--muted); font-size: .9rem; }
+
+  main { padding: 2rem clamp(1.25rem, 4vw, 3.5rem) 4rem; max-width: 62rem; }
+  .headline { font-size: clamp(1.6rem, 3.2vw, 2.4rem); font-weight: 800; line-height: 1.15;
+              letter-spacing: -.02em; margin: 0 0 .5rem; max-width: 28ch; }
+  .lede { color: var(--muted); margin: 0 0 1.75rem; max-width: 62ch; }
+
+  .chart-wrap { position: relative; height: 22rem; margin: 0 0 .5rem; }
+  .chart-note { color: var(--muted); font-size: .85rem; margin: 0 0 2.5rem; max-width: 70ch; }
+
+  h2 { font-size: 1.1rem; font-weight: 800; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  h2 + p { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; max-width: 70ch; }
+  section { margin: 0 0 3rem; }
+
+  table { width: 100%; border-collapse: collapse; }
+  caption { text-align: left; }
+  th, td { text-align: left; padding: .6rem .5rem .6rem 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  th { font-weight: 600; font-size: .85rem; color: var(--muted); }
+  td.num, th.num { text-align: right; padding-right: 1rem; }
+  .swatch { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .55rem; background: transparent; border: 2px solid var(--rule); }
+  .bar { height: .5rem; background: #e3e8ee; border-radius: 3px; min-width: 6rem; }
+  .bar > span { display: block; height: 100%; background: var(--ink); border-radius: 3px; }
+  .better { color: var(--good); font-weight: 600; }
+  .worse { color: var(--bad); font-weight: 600; }
+  .ref { color: var(--muted); }
+
+  .error { background: #fdecea; border: 1px solid #f3b9b4; color: #6b1a14; padding: 1rem 1.25rem; border-radius: 6px; max-width: 48rem; }
+  .error code { background: #fff; padding: .1rem .35rem; border-radius: 3px; }
+
+  @media (max-width: 800px) {
+    .shell { grid-template-columns: 1fr; }
+    aside { border-right: 0; border-bottom: 1px solid var(--rule); padding-bottom: .5rem; }
+    .assets { display: flex; overflow-x: auto; }
+    .assets li { flex: 0 0 auto; }
+    .assets button { border-left: 0; border-bottom: 4px solid transparent; flex-direction: column; gap: 0; padding: .5rem 1rem; }
+    .assets button[aria-pressed="true"] { border-bottom-color: var(--cobalt); }
+    .chart-wrap { height: 17rem; }
+    .bar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="banner" id="banner" hidden></div>
+<div class="shell">
+  <aside>
+    <h1>Volatility forecasts</h1>
+    <p class="sub" id="asideSub">Loading…</p>
+    <ul class="assets" id="assets"></ul>
+  </aside>
+
+  <main>
+    <div id="error" class="error" hidden></div>
+    <div id="content" hidden>
+      <h2 class="headline" id="headline" aria-live="polite"></h2>
+      <p class="lede" id="lede"></p>
+
+      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Recent volatility with next-day forecasts"></canvas></div>
+      <p class="chart-note">The grey line is each day's measured volatility, which is noisy. The dark line smooths it over five days. The three dots on the right are the next-day forecasts from different models.</p>
+
+      <section>
+        <h2>What each model predicts</h2>
+        <p>Annualised volatility forecast for <span id="forDate"></span>. When the models disagree, treat the forecast as less certain.</p>
+        <table>
+          <thead><tr><th>Model</th><th class="num">Forecast</th><th>Relative size</th></tr></thead>
+          <tbody id="forecastRows"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>How accurate are these models?</h2>
+        <p id="backtestLede"></p>
+        <table>
+          <thead><tr><th>Model</th><th class="num">Error (QLIKE)</th><th class="num">Compared with HAR-X</th><th>Reliable difference?</th></tr></thead>
+          <tbody id="scoreRows"></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const COLORS = { lstm: "#2348d9", transformer: "#0b7f86", har_x: "#a8680f" };
+let chart = null;
+let selected = null;
+let meta = null;
+
+const $ = (id) => document.getElementById(id);
+const fmt = (x, d = 1) => Number(x).toFixed(d);
+
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { msg = (await r.json()).detail || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+function showError(err) {
+  $("content").hidden = true;
+  const box = $("error");
+  box.hidden = false;
+  box.textContent = "";
+  const p = document.createElement("p");
+  p.textContent = "The dashboard could not load data: " + err.message;
+  const q = document.createElement("p");
+  q.append("Check that the API is running and that you ran ");
+  const c = document.createElement("code");
+  c.textContent = "python -m src.fit_final";
+  q.append(c, " first.");
+  box.append(p, q);
+}
+
+function renderAssets(rows) {
+  const ul = $("assets");
+  ul.textContent = "";
+  rows.forEach((row) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(row.asset === selected));
+    const n = document.createElement("span");
+    n.textContent = row.asset;
+    const v = document.createElement("span");
+    v.className = "v";
+    v.textContent = fmt(row.ensemble_annualised_vol_pct) + "%";
+    b.append(n, v);
+    b.addEventListener("click", () => selectAsset(row.asset, rows));
+    li.append(b);
+    ul.append(li);
+  });
+}
+
+async function selectAsset(asset, rows) {
+  selected = asset;
+  renderAssets(rows);
+  const [f, h] = await Promise.all([api("/api/forecast/" + asset), api("/api/history/" + asset + "?days=120")]);
+  const daily = f.ensemble_annualised_vol_pct / Math.sqrt(252);
+  $("headline").textContent = asset + ": expect daily swings of about " + fmt(daily, 2) + "% on " + f.for_date;
+  $("lede").textContent = "That is one standard deviation, or an annualised volatility of " +
+    fmt(f.ensemble_annualised_vol_pct) + "%. It averages the LSTM, Transformer and HAR-X forecasts using data through " + f.as_of + ".";
+  $("forDate").textContent = f.for_date;
+
+  const max = Math.max(...f.forecasts.map((x) => x.annualised_vol_pct));
+  const tb = $("forecastRows");
+  tb.textContent = "";
+  f.forecasts.forEach((m) => {
+    const tr = document.createElement("tr");
+    const t1 = document.createElement("td");
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    if (COLORS[m.model]) { sw.style.background = COLORS[m.model]; sw.style.borderColor = COLORS[m.model]; }
+    t1.append(sw, m.label);
+    const t2 = document.createElement("td");
+    t2.className = "num";
+    t2.textContent = fmt(m.annualised_vol_pct) + "%";
+    const t3 = document.createElement("td");
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const fill = document.createElement("span");
+    fill.style.width = (100 * m.annualised_vol_pct / max) + "%";
+    bar.append(fill);
+    t3.append(bar);
+    tr.append(t1, t2, t3);
+    tb.append(tr);
+  });
+  drawChart(h, f);
+}
+
+function drawChart(hist, f) {
+  const labels = hist.map((p) => p.date).concat([f.for_date]);
+  const pad = (arr) => arr.concat([null]);
+  const datasets = [
+    { label: "Daily volatility", data: pad(hist.map((p) => p.vol_pct)), borderColor: "#a3aeb9", borderWidth: 1, pointRadius: 0, tension: 0 },
+    { label: "5-day average", data: pad(hist.map((p) => p.vol_ma5_pct)), borderColor: "#16212c", borderWidth: 2, pointRadius: 0, tension: 0.15 },
+  ];
+  ["lstm", "transformer", "har_x"].forEach((k) => {
+    const m = f.forecasts.find((x) => x.model === k);
+    const data = new Array(labels.length).fill(null);
+    data[labels.length - 1] = m.annualised_vol_pct;
+    datasets.push({ label: m.label + " forecast", data, borderColor: COLORS[k], backgroundColor: COLORS[k],
+                    showLine: false, pointRadius: 7, pointHoverRadius: 9 });
+  });
+  if (chart) chart.destroy();
+  chart = new Chart($("chart"), {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "nearest", intersect: false },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: "#5b6874" }, grid: { display: false } },
+        y: { title: { display: true, text: "Annualised volatility (%)", color: "#5b6874" }, ticks: { color: "#5b6874" }, grid: { color: "#e3e8ee" } },
+      },
+      plugins: {
+        legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8, color: "#16212c" } },
+        tooltip: { callbacks: { label: (c) => c.dataset.label + ": " + fmt(c.parsed.y) + "%" } },
+      },
+    },
+  });
+}
+
+function renderScores(res) {
+  const tb = $("scoreRows");
+  tb.textContent = "";
+  $("backtestLede").textContent = "Walk-forward backtest on " + res.backtest_data_source +
+    " data: each model is retrained as time moves forward and scored on days it has never seen. Lower error is better. " +
+    "“Reliable” means a Diebold-Mariano test gives p below 0.05.";
+  res.scores.forEach((s) => {
+    const tr = document.createElement("tr");
+    const a = document.createElement("td"); a.textContent = s.label;
+    const b = document.createElement("td"); b.className = "num"; b.textContent = fmt(s.qlike, 3);
+    const c = document.createElement("td"); c.className = "num";
+    const d = document.createElement("td");
+    if (s.model === "har_x") {
+      c.textContent = "reference"; c.classList.add("ref"); d.textContent = "";
+    } else {
+      const pct = s.qlike_vs_har_x_pct;
+      c.textContent = (pct < 0 ? "" : "+") + fmt(pct) + "% error";
+      c.classList.add(pct < 0 ? "better" : "worse");
+      d.textContent = s.dm_p_value !== null && s.dm_p_value < 0.05 ? "Yes" : "Not shown";
+    }
+    tr.append(a, b, c, d);
+    tb.append(tr);
+  });
+}
+
+async function init() {
+  try {
+    meta = await api("/api/meta");
+    const [rows, scores] = await Promise.all([api("/api/forecasts"), api("/api/models").catch(() => null)]);
+    $("asideSub").textContent = "Next-day forecast, annualised. Data through " + meta.trained_through + ".";
+    if (meta.data_source === "synthetic") {
+      const b = $("banner");
+      b.hidden = false;
+      b.textContent = "Demo mode: these assets are simulated, so the forecasts and backtest show how the system works, not how real markets behave. Run fit_final with --data yfinance for real data.";
+    }
+    selected = rows[0].asset;
+    $("content").hidden = false;
+    $("error").hidden = true;
+    renderAssets(rows);
+    await selectAsset(selected, rows);
+    if (scores) renderScores(scores); else $("scoreRows").textContent = "No backtest results found. Run python -m src.train first.";
+  } catch (err) {
+    showError(err);
+  }
+}
+init();
+</script>
+</body>
+</html>
