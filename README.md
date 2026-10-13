@@ -121,15 +121,21 @@ lower QLIKE than HAR-X in 14 of 16 walk-forward folds (the Transformer in 13 of 
 Single seed, limited tuning, and the variance proxy is the noisy Parkinson high-low estimator,
 so treat the ranking of the two networks as tentative.
 
-### GPU benchmark (fill in after running on a GPU)
 
-```
-python -m src.benchmark
-```
+### GPU benchmark (Google Colab, Tesla T4)
 
-| Model | Device | Precision | Samples/sec | Speedup vs CPU |
-|---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+Batch 1024, sequence length 64, hidden width 256. Speedup is relative to the Colab CPU for the same model.
+
+| Model | Device | Precision | Samples/sec | ms/step | Speedup vs CPU |
+|---|---|---|---|---|---|
+| LSTM | CPU | fp32 | 215 | 4768.6 | 1.0x |
+| LSTM | Tesla T4 | fp32 | 8,790 | 116.5 | 40.9x |
+| LSTM | Tesla T4 | fp16 AMP | 35,799 | 28.6 | 166.5x |
+| Transformer | CPU | fp32 | 29 | 35573.7 | 1.0x |
+| Transformer | Tesla T4 | fp32 | 1,938 | 528.3 | 66.8x |
+| Transformer | Tesla T4 | fp16 AMP | 5,216 | 196.3 | 179.9x |
+
+Mixed precision (AMP) adds a further 4.1x for the LSTM and 2.7x for the Transformer over fp32 on the same GPU. The CPU baseline is Colab's free-tier CPU, so speedups against a faster CPU would be smaller.
 
 ## Design decisions
 
@@ -185,3 +191,5 @@ artifacts/         saved models trained on real ETF data
 results/           backtest outputs
 tests/             leakage, pipeline and API tests
 ```
+#dashboard
+![Dashboard](docs/dashboard.png)
